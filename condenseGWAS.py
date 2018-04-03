@@ -4,7 +4,10 @@ condenseGWAS.py takes in a GWAS 'txt' format file with columns:
 
 Checks each SNP log(p) value, saving those above a given threshold
 Exports key snips to '.cgwas' file
+
+Created for BIOL595 Project
 """
+
 # Open input file
 inFile = 'water_absorption.txt'
 try:

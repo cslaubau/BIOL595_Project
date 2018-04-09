@@ -25,10 +25,13 @@ except IOError:
     exit(1)
 
 logPCutoff = 4.0  # What is the typical log(p) cutoff you want to check? Eventually make this a user input
+addWidth = 2e5 # What is the typical log(p) cutoff you want to check? Eventually make this a user input
 
 skipLine = 1  # Does the file have a header? Could be input to the user or something we check automatically
 numSeqIn = 0
 numSeqOut = 0
+[idPrev, chromPrev, beginPrev, endPrev, logPPrev] = ["", "", "", "", ""]
+hold = []
 for line in inFh:
     if skipLine:
         skipLine = 0
@@ -38,13 +41,46 @@ for line in inFh:
         if float(line.split()[3]) >= logPCutoff:
             numSeqOut += 1
 
-            # Convert position?
-            # Should there be a check for redundancy?
+            # Convert position and find beginning and end
+            [idCurrent, chromCurrent, midCurrent, logPCurrent] = line.split()
+            if len(idCurrent.split('_')) > 1:
+                # S(Chrome)_## type
+                midCurrent = idCurrent.split('_')[1]
+                beginCurrent = int(midCurrent) - addWidth
+                if beginCurrent < 0:
+                    beginCurrent = 0
+                beginCurrent = str(int(beginCurrent))
+                endCurrent = str(int(int(midCurrent) + addWidth))
+            else:
+                # Irregular
+                midCurrent = int(int(midCurrent) * 1e6)
+                beginCurrent = int(midCurrent) - addWidth
+                if beginCurrent < 0:
+                    beginCurrent = 0
+                beginCurrent = str(int(beginCurrent))
+                endCurrent = str(int(int(midCurrent) + addWidth))
 
-            outFh.write('{}'.format(line))
+            # Check for overlap and combine
+            if (chromPrev in chromCurrent) and (chromCurrent in chromPrev):
+                if (int(beginCurrent) >= int(beginPrev)) and (int(beginCurrent) <= int(endPrev)):
+                    beginCurrent = beginPrev
+                    idCurrent = idPrev + ';' + idCurrent
+                    del hold[-1]
+                else:
+                    pass
+            else:
+                pass
 
-print("\n{} sequences read in from '{}'.".format(numSeqIn, inFile))
-print("{} sequences with log(p) value greater than {} output to '{}'.".format(numSeqOut, logPCutoff, outFile))
+            lineCurrent = idCurrent + '\t' + chromCurrent + '\t' + beginCurrent + '\t' + endCurrent + '\t' + logPCurrent + '\n'
+            [idPrev, chromPrev, beginPrev, endPrev, logPPrev] = [idCurrent, chromCurrent, beginCurrent, endCurrent, logPCurrent]
+
+            hold.append(lineCurrent)
+
+for entry in hold:
+    outFh.write('{}'.format(entry))
 
 inFh.close()
 outFh.close()
+
+print("\n{} sequences read in from '{}'.".format(numSeqIn, inFile))
+print("{} sequences with log(p) value greater than {} output to '{}'.".format(numSeqOut, logPCutoff, outFile))

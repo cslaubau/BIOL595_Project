@@ -26,13 +26,6 @@ for line in gwasFh:
     gwasRanges[chrom].append(lineSplit)
 gwasFh.close()
 
-outFile = gwasFile.replace('.cgwas', '.gff3.out')
-try:
-    outFh = open(outFile, 'w')
-except IOError:
-    print('There was an error opening the output file')
-    exit(1)
-
 # Find and save all gff ids for ranges that lie within target ranges
 snpGeneOverlaps = {}
 snpKeys = []
@@ -48,9 +41,20 @@ for line in gffFh:
                 if snp not in snpKeys:
                     snpKeys.append(snp)
                     snpGeneOverlaps[snp] = []
-                snpGeneOverlaps{}
-                print(entry, current)
+                snpGeneOverlaps[snp].append(ID)
+                #print(entry, current)
                 # out.write(line)
+
+outFile = gwasFile.replace('.cgwas', '.genes')
+try:
+    outFh = open(outFile, 'w')
+except IOError:
+    print('There was an error opening the output file')
+    exit(1)
+
+for k in snpKeys:
+    for gene in snpGeneOverlaps[k]:
+        outFh.write(gene + '\t' + k + '\n')
 
 gffFh.close()
 outFh.close()

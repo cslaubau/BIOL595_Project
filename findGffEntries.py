@@ -1,12 +1,12 @@
 # Open condensed GWAS file
-gwasFile = 'water_absorption.cgwas'
+gwasFile = 'Netblotch.cgwas'
 try:
     gwasFh = open(gwasFile, 'r')
 except IOError:
     print('There was an error opening the condensed GWAS input file')
     exit(1)
 
-gffFile = 'Triticum_aestivum.TGACv1.38.txt'
+gffFile = 'Hv_IBSC_PGSB_v2p37_genes.txt'
 try:
     gffFh = open(gffFile, 'r')
 except IOError:
@@ -21,7 +21,9 @@ for line in gwasFh:
     if chrom not in keys:
         keys.append(chrom)
         gwasRanges[chrom] = []
-    gwasRanges[chrom].append(line.split()[2:4])
+    lineSplit = line.split()
+    del lineSplit[4], lineSplit[1]
+    gwasRanges[chrom].append(lineSplit)
 gwasFh.close()
 
 outFile = gwasFile.replace('.cgwas', '.gff3.out')
@@ -32,6 +34,7 @@ except IOError:
     exit(1)
 
 # Find and save all gff ids for ranges that lie within target ranges
+snpGeneOverlaps = {}
 for line in gffFh:
     current = line.split()
     if current[0] in keys:
@@ -39,9 +42,10 @@ for line in gffFh:
         [gffBegin, gffEnd] = [int(gffBegin), int(gffEnd)]
         # beginning or end lies between the current gwas range, save it to file
         for entry in gwasRanges[chrom]:
-            [rangeBegin, rangeEnd] = [int(entry[0]), int(entry[1])]
+            [snp, rangeBegin, rangeEnd] = [entry[0], int(entry[1]), int(entry[2])]
             if (gffBegin >= rangeBegin and gffBegin <= rangeEnd) or (gffEnd >= rangeBegin and gffEnd <= rangeEnd):
-                #print(entry, current)
+                if
+                print(entry, current)
                 pass
                 # this never happens. Is it because the gff base values are on some sort of different scale?
                 # out.write(line)

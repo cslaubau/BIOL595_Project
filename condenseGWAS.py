@@ -9,9 +9,10 @@ Created for BIOL595 Project
 """
 
 # Open input file
-inFile = 'water_absorption.txt'
+inFile = 'Netblotch.txt'
 try:
     inFh = open(inFile, 'r')
+    print('File loaded')
 except IOError:
     print('There was an error opening the GWAS input file')
     exit(1)
@@ -24,7 +25,7 @@ except IOError:
     print('There was an error opening the condensed GWAS output file')
     exit(1)
 
-logPCutoff = 4.0  # What is the typical log(p) cutoff you want to check? Eventually make this a user input
+logPCutoff = 3.0  # What is the typical log(p) cutoff you want to check? Eventually make this a user input
 addWidth = 2e5 # What is the typical log(p) cutoff you want to check? Eventually make this a user input
 
 skipLine = 1  # Does the file have a header? Could be input to the user or something we check automatically
@@ -45,7 +46,7 @@ for line in inFh:
             [idCurrent, chromCurrent, midCurrent, logPCurrent] = line.split()
             if len(idCurrent.split('_')) > 1:
                 # S(Chrome)_## type
-                midCurrent = idCurrent.split('_')[1]
+                #midCurrent = idCurrent.split('_')[1]
                 beginCurrent = int(midCurrent) - addWidth
                 if beginCurrent < 0:
                     beginCurrent = 0
@@ -53,7 +54,7 @@ for line in inFh:
                 endCurrent = str(int(int(midCurrent) + addWidth))
             else:
                 # Irregular
-                midCurrent = int(int(midCurrent) * 1e6)
+                #midCurrent = int(int(midCurrent) * 1e6)
                 beginCurrent = int(midCurrent) - addWidth
                 if beginCurrent < 0:
                     beginCurrent = 0

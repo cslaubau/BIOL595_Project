@@ -35,6 +35,7 @@ except IOError:
 
 # Find and save all gff ids for ranges that lie within target ranges
 snpGeneOverlaps = {}
+snpKeys = []
 for line in gffFh:
     current = line.split()
     if current[0] in keys:
@@ -44,10 +45,11 @@ for line in gffFh:
         for entry in gwasRanges[chrom]:
             [snp, rangeBegin, rangeEnd] = [entry[0], int(entry[1]), int(entry[2])]
             if (gffBegin >= rangeBegin and gffBegin <= rangeEnd) or (gffEnd >= rangeBegin and gffEnd <= rangeEnd):
-                if
+                if snp not in snpKeys:
+                    snpKeys.append(snp)
+                    snpGeneOverlaps[snp] = []
+                snpGeneOverlaps{}
                 print(entry, current)
-                pass
-                # this never happens. Is it because the gff base values are on some sort of different scale?
                 # out.write(line)
 
 gffFh.close()

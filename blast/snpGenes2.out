@@ -1,0 +1,18 @@
+HORVU6Hr1G058230	S6_380651458;S6_380651459
+	gi|1149797354|ref|XP_020159462.1| succinate--CoA ligase [ADP-forming] subunit beta, mitochondrial [Aegilops tauschii subsp. tauschii] >gi|474416303|gb|EMS67204.1| Succinyl-CoA ligase [ADP-forming] subunit beta, mitochondrial [Triticum urartu] 1511.0  0.0
+	gi|326527793|dbj|BAJ88969.1| predicted protein [Hordeum vulgare subsp. vulgare] 1509.0  0.0
+	gi|1371080579|ref|XP_024317866.1| succinate--CoA ligase [ADP-forming] subunit beta, mitochondrial isoform X1 [Brachypodium distachyon] 1473.0  0.0
+	gi|1371080581|ref|XP_024317867.1| succinate--CoA ligase [ADP-forming] subunit beta, mitochondrial isoform X2 [Brachypodium distachyon] 1472.0  0.0
+	gi|357150216|ref|XP_003575382.1| succinate--CoA ligase [ADP-forming] subunit beta, mitochondrial isoform X3 [Brachypodium distachyon] >gi|944064800|gb|KQK00391.1| hypothetical protein BRADI_3g49070v3 [Brachypodium distachyon] 1472.0  0.0
+HORVU6Hr1G063230	S6_425641774;S6_425641788
+	gi|326498031|dbj|BAJ94878.1| predicted protein [Hordeum vulgare subsp. vulgare] 834.0  1.7633e-108
+	gi|1149751577|ref|XP_020198197.1| casein kinase 1 [Aegilops tauschii subsp. tauschii] 819.0  4.07083e-106
+	gi|357150222|ref|XP_003575384.1| casein kinase 1 isoform X1 [Brachypodium distachyon] >gi|944064803|gb|KQK00394.1| hypothetical protein BRADI_3g49100v3 [Brachypodium distachyon] 782.0  1.28216e-100
+	gi|37693196|emb|CAD32377.1| putative casein kinase I, partial [Oryza sativa Japonica Group] 720.0  3.19444e-91
+	gi|1002244488|ref|XP_015626436.1| PREDICTED: casein kinase I [Oryza sativa Japonica Group] >gi|75324104|sp|Q6K9N1.1|CKI1_ORYSJ RecName: Full=Casein kinase 1; Short=OsCKI1; AltName: Full=Protein HYBRID BREAKDOWN 2; AltName: Full=Protein LOW TEMPERATURE GROWTH 1 >gi|47847774|dbj|BAD21551.1| putative protein kinase (ADK1) [Oryza sativa Japonica Group] >gi|113536996|dbj|BAF09379.1| Os02g0622100 [Oryza sativa Japonica Group] >gi|215715287|dbj|BAG95038.1| unnamed protein product [Oryza sativa Japonica Group] >gi|218191194|gb|EEC73621.1| hypothetical protein OsI_08119 [Oryza sativa Indica Group] >gi|222623265|gb|EEE57397.1| hypothetical protein OsJ_07571 [Oryza sativa Japonica Group] >gi|937904777|dbj|BAS79831.1| Os02g0622100 [Oryza sativa Japonica Group] 719.0  3.44653e-91
+HORVU6Hr1G063580	S6_428959201;S6_428959202
+	gi|1149720748|ref|XP_020186302.1| cytosolic sulfotransferase 5-like [Aegilops tauschii subsp. tauschii] 758.0  6.6688e-98
+	gi|77552971|gb|ABA95767.1| Sulfotransferase domain containing protein [Oryza sativa Japonica Group] 660.0  2.95392e-85
+	gi|721671636|ref|XP_010236840.1| cytosolic sulfotransferase 13 [Brachypodium distachyon] >gi|944065041|gb|KQK00632.1| hypothetical protein BRADI_3g50760v3 [Brachypodium distachyon] 651.0  6.57875e-82
+	gi|1002311051|ref|XP_015618881.1| PREDICTED: cytosolic sulfotransferase 5 [Oryza sativa Japonica Group] >gi|77552973|gb|ABA95769.1| Sulfotransferase domain containing protein [Oryza sativa Japonica Group] >gi|125578442|gb|EAZ19588.1| hypothetical protein OsJ_35165 [Oryza sativa Japonica Group] >gi|215769467|dbj|BAH01696.1| unnamed protein product [Oryza sativa Japonica Group] >gi|255670030|dbj|BAH95509.1| Os12g0137700 [Oryza sativa Japonica Group] >gi|937940899|dbj|BAT15811.1| Os12g0137700 [Oryza sativa Japonica Group] 630.0  1.09528e-78
+	gi|125533341|gb|EAY79889.1| hypothetical protein OsI_35051 [Oryza sativa Indica Group] 613.0  4.58162e-76

@@ -27,6 +27,7 @@ except IOError:
 
 logPCutoff = 3.0  # What is the typical log(p) cutoff you want to check? Eventually make this a user input
 addWidth = 2e5 # What is the typical log(p) cutoff you want to check? Eventually make this a user input
+# Accidentally did double... rerun everything with 1e5
 
 skipLine = 1  # Does the file have a header? Could be input to the user or something we check automatically
 numSeqIn = 0

@@ -1,3 +1,10 @@
+"""
+snpGeneSeqs.py takes in the gene targets from the GWAS search (as .genes) and the full cds of the target organism (as .fa)
+For each target gene, as search is done in the cds, and the first matching sequence is saved to output (.fasta)
+
+(script follows findGffEntries.py in order)
+"""
+
 # Open input gene file
 inGeneFile = 'Netblotch.genes'
 try:
@@ -39,15 +46,16 @@ for gene in geneIds:
     for line in fastaFh:
         if gene in line:
             startSaving = 1
-            initial = 0
-            print('New seq found')
-        if line.startswith('>'):
+
+        if startSaving and line.startswith('>'):
             initial += 1
 
         if startSaving and (initial > 1) and line.startswith('>'):
             fastaFh.seek(0)
             startSaving = 0
+            initial = 0
             break
+
         if startSaving:
             outFh.write(line)
 

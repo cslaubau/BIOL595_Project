@@ -1,3 +1,8 @@
+"""
+Converts a .csv formatted gff file to a .txt file with only the pertinent information.
+
+"""
+
 gffFile = 'Hv_IBSC_PGSB_v2p37_genes.csv'
 try:
     gffFh = open(gffFile, 'r')

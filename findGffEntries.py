@@ -1,3 +1,11 @@
+"""
+Uses the .cgwas file created in 'condenseGWAS.py' and the sequence gff file (in .txt format) as input.
+Cross-references the significant GWAS SNPs in .cgwas with the .gff file.
+Outputs a .genes file containing the gene detected and SNPs associated with it
+
+(script follows csv2txt.py and condenseGWAS.py in order)
+"""
+
 # Open condensed GWAS file
 gwasFile = 'Netblotch.cgwas'
 try:

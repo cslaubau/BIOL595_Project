@@ -1,28 +1,31 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
-
 from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit, QFileDialog
 from PyQt5.QtGui import QIcon
 
 from UI_Files import GUI_UI
 import sys, time, datetime
-
 import subprocess as sub
 from time import sleep
 from Bio.Blast.Applications import NcbiblastxCommandline as cl
+import os
 
 from fasta import fastaNext
 
 from Bio.Blast import NCBIXML as xml
-
 import os
 from Bio.Align.Applications import ClustalwCommandline
 from Bio import Phylo
+from Bio.SeqRecord import SeqRecord
+import requests
+from Bio import SeqIO
 
 stimTimer = QtCore.QTimer()
 guiTimer = QtCore.QTimer()
 
 
 class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
+    """The main window is a gui object that the user interacts with."""
+
     def __init__(self):
         super().__init__()
         self.ui = GUI_UI.Ui_Form()
@@ -34,9 +37,13 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         self.filesLoaded = [0, 0, 0]
         self.logPCutoff = self.ui.logp_le.text()
         self.addWidth = self.ui.baseWidth_le.text()
+        self.blastJobs = []
+        self.interproJobs = []
+        self.interproResultFiles = []
 
-        self.connectActions()
+        self.connectActions()  # attach functions to the interactable objects in the GUI
 
+        # Limit the user's ability to cause errors by disabling functions until prior requirements are met
         self.ui.gff_gb.setEnabled(False)
         self.ui.fasta_gb.setEnabled(False)
         self.ui.parameters_gb.setEnabled(False)
@@ -48,25 +55,14 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         self.ui.local_rb.setEnabled(False)
         self.ui.remote_rb.setChecked(True)
 
-        # Setup Trial Information
+        self.ui.search_gb.setEnabled(False)
+        self.ui.blast_gb.setEnabled(False)
+        self.ui.interpro_gb.setEnabled(False)
+
         self.currentDateTime = datetime.datetime.now()
 
-        # self.ui.currentDate_de.setDate(self.currentDateTime)
-        # self.ui.currentDate_de.setDisplayFormat('yyyy/MM/dd')
-        # self.ui.currentTime_te.setTime(self.currentDateTime.time())
-        # self.ui.currentTime_te.setDisplayFormat('hh:mm:ss')
-
-        # self.ui.gb.setEnabled(False)
-        # self.ui.le.setEnabled(False)
-        # self.ui.cb.setEnabled(False)
-        # self.ui.pb.setEnabled(False)
-
     def connectActions(self):  # buttons, etc
-        # self.ui.pb.clicked.connect(self.myButtonClicked)
-        # self.ui.le.textChanged.connect(self.myLineEditModified)
-        # self.ui.cb.currentIndexChanged.connect(self.myIndexChanged)
-
-        # input
+        # input -- load the associated file types
         self.ui.gwas_pb.clicked.connect(self.openGwasFile)
         self.ui.gff_pb.clicked.connect(self.openGffFile)
         self.ui.fasta_pb.clicked.connect(self.openFastaFile)
@@ -74,13 +70,18 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         # set parameters
         self.ui.snpSearch_pb.clicked.connect(self.mySnpSearchButtonClicked)  # run the SNP search
 
+        # general search
+        self.ui.blastEnable_cb.stateChanged.connect(self.blastEnableStateChanged)  # disable and enable blast
+        self.ui.interproEnable_cb.stateChanged.connect(self.interproEnableStateChanged)  # disable and enable interpro
+
         # blast search
-        self.ui.numSave_le.textChanged.connect(self.myNumSaveLineEditModified)
-        self.ui.doBlastSearch_pb.clicked.connect(self.blastSearchMain)
+        self.ui.numSave_le.textChanged.connect(self.myNumSaveLineEditModified)  # detect errors in input
+        self.ui.doSearch_pb.clicked.connect(self.searchMain)  # run the main search
 
         guiTimer.timeout.connect(self.updateGui)
 
     def openGwasFile(self):
+        """Creates a window for loading gwas files"""
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self, "Open GWAS file", "", "Text Files (*.txt);;All Files (*)",
@@ -99,6 +100,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         self.updateGui()
 
     def openGffFile(self):
+        """Creates a window for loading gff files"""
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self, "Open gff file", "", "GFF Files (*.csv);;All Files (*)",
@@ -117,6 +119,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         self.updateGui()
 
     def openFastaFile(self):
+        """Creates a window for loading fasta files"""
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self, "Open fasta file", "", "FastA Files (*.fa);;All Files (*)",
@@ -134,6 +137,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         self.updateGui()
 
     def is_number(self, s):
+        """Checks if the string of interest (s) can be converted to a float without error"""
         try:
             float(s)
             return True
@@ -141,8 +145,9 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
             return False
 
     def mySnpSearchButtonClicked(self):
+        """Activated by the 'Find Significant SNPs' button. Starts the process of trimming the SNP file, sorting the gff
+         file, and generating a targeted fasta file."""
         if self.is_number(self.ui.logp_le.text()) and self.is_number(self.ui.baseWidth_le.text()):
-            print("values are numbers")
             self.logPCutoff = float(self.ui.logp_le.text())
             self.addWidth = float(self.ui.baseWidth_le.text())
             self.addWidth = int(self.addWidth)
@@ -151,8 +156,12 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
             if self.ui.generateTree_cb.isChecked():
                 self.generatePhylogenicTree()
             self.ui.snpSearch_pb.setEnabled(False)
-        else:
-            print("number error")
+            QtWidgets.QMessageBox.warning(self, 'Message', "SNP search completed.", QtWidgets.QMessageBox.Ok)
+            self.ui.search_gb.setEnabled(True)
+        else:  # if the logp value entered or the base pair cutoff are not numerical, tell the user to fix them.
+            QtWidgets.QMessageBox.warning(self, 'Message',
+                                          "You have entered a value that is not a number. Please fix this before continuing.",
+                                          QtWidgets.QMessageBox.Ok)
 
     def snpSearch(self):
         # Part 1
@@ -296,7 +305,8 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
                 # beginning or end lies between the current gwas range, save it to file
                 for entry in gwasRanges[chrom]:
                     [snp, rangeBegin, rangeEnd] = [entry[0], int(entry[1]), int(entry[2])]
-                    if (gffBegin >= rangeBegin and gffBegin <= rangeEnd) or (gffEnd >= rangeBegin and gffEnd <= rangeEnd):
+                    if (gffBegin >= rangeBegin and gffBegin <= rangeEnd) or (
+                            gffEnd >= rangeBegin and gffEnd <= rangeEnd):
                         if snp not in snpKeys:
                             snpKeys.append(snp)
                             snpGeneOverlaps[snp] = []
@@ -373,6 +383,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         print("FastA sequences of interest were written to {}".format(self.snpFile))
 
     def generatePhylogenicTree(self):
+        """Generates a phylogenic tree when the corresponding check box is selected."""
         clustalw_exe = r"./clustalw2"
         clustalw_cline = ClustalwCommandline(clustalw_exe, infile="snpGenes.fasta")
         assert os.path.isfile(clustalw_exe), "Clustal W executable missing"
@@ -381,10 +392,16 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
         tree = Phylo.read("snpGenes.dnd", "newick")
 
         Phylo.draw_ascii(tree)
-        # tree.rooted = True
-        # Phylo.draw(tree)
+
+        try:  # This often doesn't work in pycharm. Will run best from the terminal
+            tree.rooted = True
+            Phylo.draw(tree)
+        except:
+            pass
 
     def myNumSaveLineEditModified(self):
+        """When the number of saved lines line edit box value is changed, check that the value entered is a number.
+        If it is not, tell the user to fix it and disable the search function."""
         if self.is_number(self.ui.numSave_le.text()):
             self.ui.doBlastSearch_pb.setEnabled(True)
         elif self.ui.numSave_le.text() == "":
@@ -395,12 +412,74 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
                                           "You have entered a value that is not a number. Please fix this before continuing.",
                                           QtWidgets.QMessageBox.Ok)
 
-    def blastSearchMain(self):
-        self.splitFastaFile()
-        #self.blastSearch()
-        #self.blastParse()
+    def blastEnableStateChanged(self):
+        """When the blast enable check box is checked, either enable or disable the blast search."""
+        state = self.ui.blastEnable_cb.isChecked()
+        if state:
+            self.ui.blast_gb.setEnabled(True)
+        else:
+            self.ui.blast_gb.setEnabled(False)
+        return
+
+    def interproEnableStateChanged(self):
+        """When the interpro enable check box is checked, either enable or disable the interpro search. This function is
+        redundant to 'blastEnableStateChanged' only because PyQt5 has strict rules for the connecting actions."""
+        state = self.ui.interproEnable_cb.isChecked()
+        if state:
+            self.ui.interpro_gb.setEnabled(True)
+        else:
+            self.ui.interpro_gb.setEnabled(False)
+        return
+
+    def searchMain(self):
+        """When the 'Perform Search' button is clicked, this function checks whether blast or interpro are checked and
+        runs the corresponding search(s)."""
+        if self.ui.blastEnable_cb.isChecked() and self.ui.interproEnable_cb.isChecked():
+            # blast setup
+            self.splitFastaFile()
+            print("file split")
+            self.blastSearchSetup()
+            print("blast complete")
+
+            # interpro setup
+            self.interprSearchSetup()
+
+            # polling
+            self.pollJobs()
+            print("Search complete, parsing data...")
+
+            # parse the output
+            self.blastParse()
+            print("blast result parsed")
+            self.interproParse()
+            print("interpro result parsed")
+        elif self.ui.blastEnable_cb.isChecked():
+            # blast setup
+            self.splitFastaFile()
+            print("file split")
+            self.blastSearchSetup()
+            print("blast complete")
+
+            # polling
+            self.pollJobs()
+            print("Search complete, parsing data...")
+
+            # parse the output
+            self.blastParse()
+            print("blast result parsed")
+        elif self.ui.interproEnable_cb.isChecked():
+            # interpro setup
+            self.interproSearchSetup()
+
+            # parse the output
+            self.interproParse()
+            print("interpro result parsed")
+        else:
+            pass
 
     def splitFastaFile(self):
+        """This function chops up the important SNP fasta file into 10 sequence or less files so that they can be used
+        in blast search."""
         inFile = self.snpFile
         inFh = open(inFile, 'r')
 
@@ -430,7 +509,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
                     # close the previous file
                     pass
                 self.blastFastaFileNames.append(inFile.replace('.fasta', str(fileNo) + '.fasta'))
-                fhCurrent = open(fileNames[-1], 'w')
+                fhCurrent = open(self.blastFastaFileNames[-1], 'w')
             fhCurrent.write(formatEntry(id, documentation, sequence))
 
             iteration += 1
@@ -441,48 +520,46 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
 
         inFh.close()
 
-    def blastSearch(self):
+    def blastSearchSetup(self):
         """This script performs an online blast search on the input fasta file. Returns a .xml file that can be processed in
-            Biopython (see xmlParse.py).
-
-            (script follows saveGeneSeqs.py in order)
+            Biopythons.
         """
 
-        fastaFile = self.blastFastaFileNames
-
         self.blastOutputFiles = []
-        for file in fastaFile:
-            if '.fsa' in fastaFile:
+        for file in self.blastFastaFileNames:
+            if '.fsa' in self.blastFastaFileNames:
                 self.blastOutputFiles.append(file.replace('.fa', '.xml'))
             else:
                 self.blastOutputFiles.append(file.replace('.fasta', '.xml'))
 
-        # blastx_cline = cl(query=fastaFile, db="nr", evalue=0.001, outfmt=5, out=outputFile, remote=1)
-        # jobs = [sub.Popen(str(blastx_cline), shell=True, stdout=sub.DEVNULL, stderr=sub.DEVNULL)]
-
-        jobs = []
-        for i in range(len(fastaFile)):
-            blastx_cline = cl(query=fastaFile[i], db="nr", evalue=0.001, outfmt=5, out=self.blastOutputFiles[i],
+        self.blastJobs = []
+        for i in range(len(self.blastFastaFileNames)):
+            blastx_cline = cl(query=self.blastFastaFileNames[i], db="nr", evalue=0.001, outfmt=5,
+                              out=self.blastOutputFiles[i],
                               remote=1)
             job = sub.Popen(str(blastx_cline), shell=True, stdout=sub.DEVNULL, stderr=sub.DEVNULL)
-            jobs.append(job)
+            self.blastJobs.append(job)
 
-        # poll until all jobs finish
+    def pollJobs(self):
+        """This function polls until all jobs finish. It will give a runtime and the breakdown of which jobs are still
+        processing. Heavily adapted from class example."""
+        jobs = self.blastJobs + self.interproJobs
+        numJobs = len(self.blastFastaFileNames) + 0
+
         done = 0
         delay = 60  # number of seconds to wait between polls
-        n = len(fastaFile)
+        n = numJobs
         runtime = 0
         while done < n:
             print('\nPolling')
+            runtime += 1
             for i in range(n):
-                runtime += 1
                 if jobs[i] == 'Done':
                     continue
 
                 print('    job {} ...'.format(i), end='')
 
                 result = jobs[i].poll()
-
                 if result != None:
                     print('finished')
                     jobs[i] = 'Done'
@@ -491,17 +568,18 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
                 else:
                     print('still running')
                     print('\tRuntime: ' + str(runtime - 1) + ' minutes')
-
             sleep(delay)
 
     def blastParse(self):
-        """Takes in a .xml file search result from Blast and saves the pertinent results. ####NEEDS WORK
+        """Takes in a .xml file search result from Blast and saves the pertinent results."""
 
-            (script follows blastPoll.py in order)
-        """
+        geneList = self.genesFile
+        try:
+            fhGenes = open(geneList, 'r')
+        except:
+            print("There was an error reading the .genes file")
+            exit(1)
 
-        geneList = 'Netblotch.genes'  ###
-        fhGenes = open(geneList, 'r')
         genes = []
         for line in fhGenes:
             line.strip()
@@ -517,9 +595,7 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
             blast_records = xml.parse(result_handle)
             results.append(blast_records)
 
-        # blast_records = list(blast_records)
-
-        fh = open(xmlInput[0].replace('0.xml', 'All.out'), 'w')
+        fh = open(self.ui.blastOutputFileName_le.text(), 'w')
 
         self.numSave = int(self.ui.numSave_le.text())  # the number of entries to save for each search parameter
         # eThreshold = 10e-20     # the e-value threshold to include
@@ -541,98 +617,209 @@ class MainWindow(QtWidgets.QMainWindow, GUI_UI.Ui_Form):
                     if n > self.numSave:  # break out of the loop if the number of entries to be saved has been reached
                         break
 
-                    print(desc.title)
-                    print('e-value =' + str(desc.e))
-                    print('score: ' + str(desc.score))
+                    # print(desc.title)
+                    # print('e-value =' + str(desc.e))
+                    # print('score: ' + str(desc.score))
                     # if (desc.e <= eThreshold):
                     # print('^ entry would be saved ^')
                     # add a way of marking which sequence this correlates with
 
                     fh.write('\t' + str(desc) + '\n')
-                    # print(desc.num_alignments)
 
         fh.close()
 
-    def myButtonClicked(self):
-        pass
+        # delete mess files
+        messFiles = self.blastOutputFiles + self.blastFastaFileNames
 
-    def myLineEditModified(self):
-        pass
+        ## if file exists, delete it ##
+        for myfile in messFiles:
+            if os.path.isfile(myfile):
+                os.remove(myfile)
+            else:  ## Show an error ##
+                print("Error: %s file not found" % myfile)
 
-    def myIndexChanged(self):
-        pass
+    def interproSearchSetup(self):
+        """Sets up and runs a remote interpro search. First splits the fasta file into single sequences and converts
+        them to amino acid sequences. Discards any sequence that does not begin with a start codon. Heavily adapted
+        from class example."""
 
-    def messageBox(self):
-        strMsg = "Would you like to do a thing?"
-        buttonReply = QtWidgets.QMessageBox.question(self, 'Message', strMsg,
-                                                     QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                     QtWidgets.QMessageBox.No)
-        if buttonReply == QtWidgets.QMessageBox.Yes:
-            print('Yes clicked.')
-        else:
-            print('No clicked.')
+        def make_protein_record(nuc_record):
+            """Returns a new SeqRecord with the translated sequence (default table)."""
+            return SeqRecord(seq=nuc_record.seq.translate(cds=True), id="trans_" + nuc_record.id,
+                             description="translation of CDS, using default table")
+
+        inputFile = self.snpFile
+        outputFile = inputFile.replace('.fasta', '1_p.fasta')
+
+        proteins2 = []
+        for nuc_rec in SeqIO.parse(inputFile, "fasta"):
+            try:  # this will remove sequences that do not begin with a start codon.
+                proteins2.append(make_protein_record(nuc_rec))
+            except:
+                continue
+
+        SeqIO.write(proteins2, outputFile, "fasta")
+
+        f_open = open(outputFile, "rU")
+
+        n = 0
+        for rec in SeqIO.parse(f_open, "fasta"):
+            id = rec.id
+            seq = rec.seq
+
+            fasta_seq = ">" + str(id) + "\n" + str(seq)
+
+            run = 'http://www.ebi.ac.uk/Tools/services/rest/iprscan5/run/'
+            email = 'cslaubau@purdue.edu'
+            title = 'projectResults'
+            sequence = fasta_seq
+
+            # send the initial query
+            command = {'email': email, 'title': title, 'sequence': sequence}
+            response = requests.post(run, command)
+            id = response.text
+            print('job {} submitted'.format(id))
+
+            # poll for job completion
+            import time
+
+            maxtries = 1000
+            notready = 1
+
+            status = 'http://www.ebi.ac.uk/Tools/services/rest/iprscan5/status/'
+
+            while notready:
+                response = requests.get(status + id)
+                print('    polling... response->{}'.format(response.text))
+
+                if 'FINISHED' in response.text:
+                    notready = 0
+                    break
+                else:
+                    notready += 1
+
+                if notready >= maxtries:
+                    break
+
+                # don't poll too often
+                time.sleep(20)
+
+            if notready > 0:
+                # polling reached limit
+                print('unable to find result {} in {} tries'.format(id, notready))
+                # exit(1)
+                continue
+            else:
+                print('interproscan {} finished'.format(id))
+
+                # get the final result
+            result = 'http://www.ebi.ac.uk/Tools/services/rest/iprscan5/result/'
+            result += id + '/{}'.format('xml')
+            response = requests.get(result)
+
+            name = "output" + str(n) + ".xml"
+            self.interproResultFiles.append(name)
+
+            n += 1
+            interpro_result = open(name, "w")
+            interpro_result.write('{}\n'.format(response.text))
+
+    def interproParse(self):
+        """Parses the interpro result xml files. Saves pertinent matching infromation like accession ID, library, name,
+        description. Outputs the data to user defined text file and deletes the xml files."""
+        files = self.interproResultFiles
+        outFile = self.ui.interproOutputFileName_le.text()
+        outFh = open(outFile, 'w')
+
+        for file in files:
+            fh = open(file, 'r')
+
+            lineNum = 1
+            lines2save = []
+            xref = ""
+            for line in fh:
+                if line.lstrip().startswith('<xref'):
+                    xref = line
+                if line.lstrip().startswith('<signature '):
+                    lines2save.append([lineNum, 'start'])
+                elif line.lstrip().startswith('</signature'):
+                    lines2save.append([lineNum, 'stop'])
+
+                lineNum += 1
+            fh.seek(0)
+
+            xref = xref.replace('<xref ', '')
+            xref = xref.lstrip()
+            xref = xref.replace('/>', '')
+            xref = 'Gene: ' + xref
+
+            allLines = []
+            n = 0
+            record = 0
+            for num in range(lineNum):
+                for value in lines2save:
+                    if value[0] == num:
+                        if value[1] == 'start':
+                            record = 1
+                        elif value[1] == 'stop':
+                            record = 0
+                if record:
+                    allLines.append(n)
+
+                n += 1
+
+            string = ""
+            k = 1
+            for line in fh:
+                if k in allLines:
+                    string += line.lstrip()
+                k += 1
+
+            info = ""
+            i = 1
+            outFh.write(xref)
+            for line in string.split('\n'):
+                if line.startswith('<signature ac='):
+                    info = line.replace('<signature ', '')
+                    info = info.replace('>', '')
+                    if i != 1:
+                        info = '\n\t' + info
+                elif line.startswith('<signature-library-release'):
+                    info = line.replace('<signature-library-release ', '')
+                    info = info.replace('/>', '')
+                elif line.startswith('<entry ac='):
+                    info = line.replace('<entry ', '')
+                    info = info.replace('/>', '')
+
+                if info != '':
+                    outFh.write('\t' + info + '\n')
+                info = ""
+                i += 1
+
+        outFh.close()
+
+        # delete mess files
+        messFiles = self.interproResultFiles
+
+        ## if file exists, delete it ##
+        for myfile in messFiles:
+            if os.path.isfile(myfile):
+                os.remove(myfile)
+            else:  ## Show an error ##
+                print("Error: %s file not found" % myfile)
 
     def updateGui(self):
-        inputComplete = 1
+        """"A function that is activated by transitional actions in the GUI. Enables or disables sections and features
+        as needed."""
+        inputComplete = 1  # once the input files have been loaded, allow the user to progress.
         for i in self.filesLoaded:
             inputComplete *= i
         if inputComplete:
             self.ui.parameters_gb.setEnabled(True)
 
-    def recordToTable(self):
-        pass
-    # for entry in self.currentEntry:
-    # 	currentRowCount = self.ui.Iop_tableWidget.rowCount()
-    # 	currentRowCount += 1
-
-    # 	self.ui.Iop_tableWidget.setRowCount(currentRowCount)
-    # 	item = QtWidgets.QTableWidgetItem()
-
-    # 	self.ui.Iop_tableWidget.setVerticalHeaderItem(currentRowCount-1, item)
-    # 	item = self.ui.Iop_tableWidget.verticalHeaderItem(currentRowCount-1)
-    # 	item.setText(str(currentRowCount))
-
-    # 	[prePost, typeOfMeasure, eyeMeasured, iopReturned, timeReturned] = entry
-
-    # 	item = QtWidgets.QTableWidgetItem()
-    # 	item.setTextAlignment(QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-    # 	self.ui.Iop_tableWidget.setItem(currentRowCount-1, 0, item)
-    # 	self.ui.Iop_tableWidget.item(currentRowCount-1,0).setText(iopReturned + ' mmHg')
-
-    # 	item = QtWidgets.QTableWidgetItem()
-    # 	item.setTextAlignment(QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-    # 	self.ui.Iop_tableWidget.setItem(currentRowCount-1, 1, item)
-    # 	self.ui.Iop_tableWidget.item(currentRowCount-1,1).setText(timeReturned)
-
-    # 	item = QtWidgets.QTableWidgetItem()
-    # 	item.setTextAlignment(QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-    # 	self.ui.Iop_tableWidget.setItem(currentRowCount-1, 2, item)
-    # 	self.ui.Iop_tableWidget.item(currentRowCount-1,2).setText(prePost)
-
-    # 	item = QtWidgets.QTableWidgetItem()
-    # 	item.setTextAlignment(QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-    # 	self.ui.Iop_tableWidget.setItem(currentRowCount-1, 3, item)
-    # 	self.ui.Iop_tableWidget.item(currentRowCount-1,3).setText(typeOfMeasure)
-
-    # 	item = QtWidgets.QTableWidgetItem()
-    # 	item.setTextAlignment(QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
-    # 	self.ui.Iop_tableWidget.setItem(currentRowCount-1, 4, item)
-    # 	self.ui.Iop_tableWidget.item(currentRowCount-1,4).setText(eyeMeasured)
-
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    # app.setWindowIcon(QtGui.QIcon('splash.png'))
-    # splash_pix = QtGui.QPixmap('splash.png')
-    # splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
-    # splash.setMask(splash_pix.mask())
-    # splash.show()
-    # app.processEvents()
-    # time.sleep(2)
-    # del(splash)
     ex = MainWindow()
     ex.show()
-
-    # winPreIop = EnterPreIopWindow()
-
     sys.exit(app.exec_())
